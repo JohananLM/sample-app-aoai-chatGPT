@@ -12,6 +12,7 @@ import styles from "./Chat.module.css";
 import Contoso from "../../assets/Contoso.svg";
 import { XSSAllowTags } from "../../constants/xssAllowTags";
 import { SettingsButton } from "../../SettingsButton";
+import { AnalysisPanel, AnalysisPanelTabs } from "../../components/AnalysisPanel";
 
 import {
     ChatApproaches,
@@ -62,6 +63,7 @@ const Chat = () => {
     const [clearingChat, setClearingChat] = useState<boolean>(false);
     const [hideErrorDialog, { toggle: toggleErrorDialog }] = useBoolean(true);
     const [errorMsg, setErrorMsg] = useState<ErrorMessage | null>()
+
 
     const [retrieveCount, setRetrieveCount] = useState<number>(5);
     const [promptTemplate, setPromptTemplate] = useState<string>("");
@@ -156,6 +158,21 @@ const Chat = () => {
     useEffect(() => {
         setIsLoading(appStateContext?.state.chatHistoryLoadingState === ChatHistoryLoadingState.Loading)
     }, [appStateContext?.state.chatHistoryLoadingState])
+
+    const [activeAnalysisPanelTab, setActiveAnalysisPanelTab] = useState<AnalysisPanelTabs | undefined>(undefined);
+    const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
+
+
+    const onToggleTab = (tab: AnalysisPanelTabs, index: number) => {
+        if (activeAnalysisPanelTab === tab && selectedAnswer === index) {
+            setActiveAnalysisPanelTab(undefined);
+        } else {
+            setActiveAnalysisPanelTab(tab);
+        }
+
+        setSelectedAnswer(index);
+    };
+
 
     const getUserInfoList = async () => {
         if (!AUTH_ENABLED) {
@@ -299,6 +316,7 @@ const Chat = () => {
                         }
                     });
                 }
+
                 conversation.messages.push(toolMessage, assistantMessage)
                 appStateContext?.dispatch({ type: 'UPDATE_CURRENT_CHAT', payload: conversation });
                 setMessages([...messages, toolMessage, assistantMessage]);
@@ -675,10 +693,16 @@ const Chat = () => {
         chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" })
     }, [showLoadingMessage, processMessages]);
 
-    const onShowCitation = (citation: Citation) => {
+    const onShowCitation = (citation: Citation, i : number) => {
         setActiveCitation(citation);
+        setSelectedAnswer(i);
         setIsCitationPanelOpen(true);
     };
+    const parseThoughtsFromHistory = (messages : ChatMessage[]) : string => {
+        return messages.map((msg) => 
+            msg.content
+        ).join("\n\n")
+    }
 
     const onViewSource = (citation: Citation) => {
         if (citation.url && !citation.url.includes("blob.core")) {
@@ -698,6 +722,7 @@ const Chat = () => {
         }
         return [];
     }
+
 
     const disabledButton = () => {
         return isLoading || (messages && messages.length === 0) || clearingChat || appStateContext?.state.chatHistoryLoadingState === ChatHistoryLoadingState.Loading
@@ -749,7 +774,7 @@ const Chat = () => {
                                                         message_id: answer.id,
                                                         feedback: answer.feedback
                                                     }}
-                                                    onCitationClicked={c => onShowCitation(c)}
+                                                    onCitationClicked={c => onShowCitation(c, index-1)}
                                                 />
                                             </div> : answer.role === ERROR ? <div className={styles.chatMessageError}>
                                                 <Stack horizontal className={styles.chatMessageErrorContent}>
@@ -863,18 +888,21 @@ const Chat = () => {
                     {messages && messages.length > 0 && isCitationPanelOpen && activeCitation && (
                         <Stack.Item className={styles.citationPanel} tabIndex={0} role="tabpanel" aria-label="Citations Panel">
                             <Stack aria-label="Citations Panel Header Container" horizontal className={styles.citationPanelHeaderContainer} horizontalAlign="space-between" verticalAlign="center">
-                                <span aria-label="Citations" className={styles.citationPanelHeader}>Citations</span>
+                                <span aria-label="Citations" className={styles.citationPanelHeader}>Citations and Analyis</span>
                                 <IconButton iconProps={{ iconName: 'Cancel' }} aria-label="Close citations panel" onClick={() => setIsCitationPanelOpen(false)} />
                             </Stack>
                             <h5 className={styles.citationPanelTitle} tabIndex={0} title={activeCitation.url && !activeCitation.url.includes("blob.core") ? activeCitation.url : activeCitation.title ?? ""} onClick={() => onViewSource(activeCitation)}>{activeCitation.title}</h5>
                             <div tabIndex={0}>
-                                <ReactMarkdown
-                                    linkTarget="_blank"
-                                    className={styles.citationPanelContent}
-                                    children={DOMPurify.sanitize(activeCitation.content, {ALLOWED_TAGS: XSSAllowTags})}
-                                    remarkPlugins={[remarkGfm]}
-                                    rehypePlugins={[rehypeRaw]}
-                                />
+                                <AnalysisPanel
+                                className={styles.citationPanelContent}
+                                activeCitation={activeCitation? activeCitation : null}
+                                onActiveTabChanged={x => onToggleTab(x, selectedAnswer)}
+                                citationHeight="810px"
+                                
+                                thoughts = {parseThoughtsFromHistory(messages)}
+                                data_points={messages[selectedAnswer]}
+                                activeTab={activeAnalysisPanelTab}
+                            />
                             </div>
                         </Stack.Item>
                     )}

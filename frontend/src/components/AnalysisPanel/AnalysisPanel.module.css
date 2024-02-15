@@ -1,0 +1,22 @@
+.thoughtProcess {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+    word-wrap: break-word;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    white-space: pre-wrap;
+}
+.disclaimerCitation {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+    white-space: pre-wrap;
+}
+.citationPanelContent {
+    font-style: normal;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 20px;
+    color: #000000;
+    flex: none;
+    order: 1;
+    align-self: stretch;
+    flex-grow: 0;
+} 
