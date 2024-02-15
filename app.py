@@ -4,7 +4,10 @@ import os
 import logging
 import uuid
 from dotenv import load_dotenv
-
+import io
+import mimetypes
+from azure.core.exceptions import ResourceNotFoundError
+from azure.storage.blob import BlobServiceClient
 from quart import (
     Blueprint,
     Quart,
@@ -12,7 +15,9 @@ from quart import (
     make_response,
     request,
     send_from_directory,
-    render_template
+    render_template,
+    abort,
+    send_file
 )
 
 from openai import AsyncAzureOpenAI
@@ -24,14 +29,17 @@ from backend.utils import format_as_ndjson, format_stream_response, generateFilt
 
 bp = Blueprint("routes", __name__, static_folder="static", template_folder="static")
 
+
 # UI configuration (optional)
-UI_TITLE = os.environ.get("UI_TITLE") or "Contoso"
-UI_LOGO = os.environ.get("UI_LOGO")
-UI_CHAT_LOGO = os.environ.get("UI_CHAT_LOGO")
+UI_TITLE = os.environ.get("UI_TITLE") or "YH2 AI Application"
+UI_LOGO = os.environ.get("UI_LOGO") 
+UI_CHAT_LOGO = os.environ.get("UI_CHAT_LOGO") 
 UI_CHAT_TITLE = os.environ.get("UI_CHAT_TITLE") or "Start chatting"
 UI_CHAT_DESCRIPTION = os.environ.get("UI_CHAT_DESCRIPTION") or "This chatbot is configured to answer your questions"
 UI_FAVICON = os.environ.get("UI_FAVICON") or "/favicon.ico"
 UI_SHOW_SHARE_BUTTON = os.environ.get("UI_SHOW_SHARE_BUTTON", "true").lower() == "false"
+
+
 
 def create_app():
     app = Quart(__name__)
@@ -52,6 +60,11 @@ async def assets(path):
     return await send_from_directory("static/assets", path)
 
 load_dotenv()
+CONFIG_BLOB_CLIENT = "blob_client"
+AZURE_STORAGE_ACCOUNT = os.environ.get("AZURE_STORAGE_ACCOUNT")
+AZURE_STORAGE_CONTAINER = os.environ.get("AZURE_STORAGE_CONTAINER")
+AZURE_STORAGE_CONNECTION_STRING =   os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+blob_client = BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
 
 # Debug settings
 DEBUG = os.environ.get("DEBUG", "false")
@@ -913,6 +926,27 @@ async def clear_messages():
         logging.exception("Exception in /history/clear_messages")
         return jsonify({"error": str(e)}), 500
 
+
+@bp.route("/content/<path>")
+async def content_file(path: str):
+    logging.info("Opening file %s", path)
+    blob_container_client = blob_client.get_container_client(AZURE_STORAGE_CONTAINER)
+    try:
+        blob = blob_container_client.get_blob_client(path).download_blob()
+    except ResourceNotFoundError:
+        logging.exception("Path not found: %s", path)
+        abort(404)
+    if not blob.properties or not blob.properties.has_key("content_settings"):
+        abort(404)
+    mime_type = blob.properties["content_settings"]["content_type"]
+    if mime_type == "application/octet-stream":
+        mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
+    blob_file = io.BytesIO()
+    blob.readinto(blob_file)
+    blob_file.seek(0)
+    page_to_display = blob_file
+    response = await send_file(page_to_display, mimetype=mime_type, as_attachment=False, attachment_filename=path)
+    return response
 
 @bp.route("/history/ensure", methods=["GET"])
 async def ensure_cosmos():
