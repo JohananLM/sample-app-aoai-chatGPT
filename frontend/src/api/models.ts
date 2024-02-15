@@ -62,9 +62,32 @@ export type ChatResponse = {
     error?: any;
 }
 
+export type ChatParameters = {
+    semantic_search?: boolean;
+    top_p?: number;
+    top?: number;
+    temperature?: number;
+    prompt_override?: string;
+    presence_penalty? : number;
+    frequency_penalty? : number
+};
+
+export enum ChatModel {
+    GPT3_5_TURBO = "chat",
+    GPT4 = "chat-gpt4",
+    GPT4_32K = "gpt-4-32k"
+}
+
 export type ConversationRequest = {
     messages: ChatMessage[];
+    params: ChatParameters;
+    approach : ChatApproaches;
+    model : ChatModel
 };
+
+export const enum ChatApproaches {
+    BaseImplementation = "base",
+}
 
 export type UserInfo = {
     access_token: string;

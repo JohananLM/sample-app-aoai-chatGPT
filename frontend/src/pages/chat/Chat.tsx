@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect, useContext, useLayoutEffect } from "react";
-import { CommandBarButton, IconButton, Dialog, DialogType, Stack } from "@fluentui/react";
+import { CommandBarButton, IconButton, Dialog, DialogType, Checkbox, ChoiceGroup, DefaultButton, IChoiceGroupOption, Panel, SpinButton, Stack, TextField, Tooltip, TooltipHost  } from "@fluentui/react";
 import { SquareRegular, ShieldLockRegular, ErrorCircleRegular } from "@fluentui/react-icons";
-
 import ReactMarkdown from "react-markdown";
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from "rehype-raw";
@@ -12,9 +11,13 @@ import DOMPurify from 'dompurify';
 import styles from "./Chat.module.css";
 import Contoso from "../../assets/Contoso.svg";
 import { XSSAllowTags } from "../../constants/xssAllowTags";
+import { SettingsButton } from "../../SettingsButton";
 
 import {
+    ChatApproaches,
     ChatMessage,
+    ChatModel,
+    ChatParameters,
     ConversationRequest,
     conversationApi,
     Citation,
@@ -35,11 +38,13 @@ import { ChatHistoryPanel } from "../../components/ChatHistory/ChatHistoryPanel"
 import { AppStateContext } from "../../state/AppProvider";
 import { useBoolean } from "@fluentui/react-hooks";
 
+
 const enum messageStatus {
     NotRunning = "Not Running",
     Processing = "Processing",
     Done = "Done"
 }
+
 
 const Chat = () => {
     const appStateContext = useContext(AppStateContext)
@@ -57,6 +62,59 @@ const Chat = () => {
     const [clearingChat, setClearingChat] = useState<boolean>(false);
     const [hideErrorDialog, { toggle: toggleErrorDialog }] = useBoolean(true);
     const [errorMsg, setErrorMsg] = useState<ErrorMessage | null>()
+
+    const [retrieveCount, setRetrieveCount] = useState<number>(5);
+    const [promptTemplate, setPromptTemplate] = useState<string>("");
+    const [retrieveTemp, setRetrieveTemp] = useState<number>(0);
+    const [useSemanticSearch, setUseSemanticSearch] = useState<boolean>(true);
+    const [topPValue, setTopPValue] = useState<number>(1);
+    const [freqPenalty, setFreqPenalty] = useState<number>(0);
+    const [presPenalty, setPresPenalty] = useState<number>(0);
+    const [approach, setApproach] = useState<ChatApproaches>(ChatApproaches.BaseImplementation);
+    const [model, setModel] = useState<ChatModel>(ChatModel.GPT4);
+    const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
+
+    const approaches: IChoiceGroupOption[] = [
+        {
+            key: ChatApproaches.BaseImplementation,
+            text: "Basic Streaming Approach"
+        }
+    ];
+
+    const models: IChoiceGroupOption[] = [
+        {
+            key: ChatModel.GPT3_5_TURBO,
+            text: "GPT-3.5 Turbo"
+        },
+        {
+            key: ChatModel.GPT4,
+            text: "GPT-4"
+        },
+        {
+            key: ChatModel.GPT4_32K,
+            text: "GPT-4-32K"
+        }
+    ];
+
+    const onApproachChange = (_ev?: React.FormEvent<HTMLElement | HTMLInputElement>, option?: IChoiceGroupOption) => {
+        setApproach((option?.key as ChatApproaches) || ChatApproaches.BaseImplementation);};
+    const onModelChange = (_ev?: React.FormEvent<HTMLElement | HTMLInputElement>, option?: IChoiceGroupOption) => {
+        setModel((option?.key as ChatModel) || ChatModel.GPT4);};
+    const onPromptTemplateChange = (_ev?: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        setPromptTemplate(newValue || "");};
+    const onRetrieveCountChange = (_ev?: React.SyntheticEvent<HTMLElement, Event>, newValue?: string) => {
+        setRetrieveCount(parseInt(newValue || "5"));};
+    const ontopPValueChange = (_ev?: React.SyntheticEvent<HTMLElement, Event>, newValue?: string) => {
+        setTopPValue(parseFloat(newValue || "1"));};
+    const onTempChange = (_ev?: React.SyntheticEvent<HTMLElement, Event>, newValue?: string) => {
+        setRetrieveTemp(parseFloat(newValue || "0"));};
+    const onFreqPenaltyChange = (_ev?: React.SyntheticEvent<HTMLElement, Event>, newValue?: string) => {
+        setFreqPenalty(parseFloat(newValue || "0"));};
+    const onPresPenaltyChange = (_ev?: React.SyntheticEvent<HTMLElement, Event>, newValue?: string) => {
+        setPresPenalty(parseFloat(newValue || "0"));};
+    const semanticSearchEnabledChange = (_ev?: React.SyntheticEvent<HTMLElement, Event>, checked?: boolean) => {
+        setUseSemanticSearch(!!checked);};
+    
 
     const errorDialogContentProps = {
         type: DialogType.close,
@@ -184,7 +242,16 @@ const Chat = () => {
         setMessages(conversation.messages)
 
         const request: ConversationRequest = {
-            messages: [...conversation.messages.filter((answer) => answer.role !== ERROR)]
+            messages: [...conversation.messages.filter((answer) => answer.role !== ERROR),],
+            params: {semantic_search: useSemanticSearch,
+                    top_p: topPValue,
+                    top: retrieveCount,
+                    temperature: retrieveTemp,
+                    prompt_override: promptTemplate,
+                    presence_penalty: presPenalty,
+                    frequency_penalty: freqPenalty},
+            approach: ChatApproaches.BaseImplementation,
+            model:ChatModel.GPT4
         };
 
         let result = {} as ChatResponse;
@@ -295,12 +362,30 @@ const Chat = () => {
             } else {
                 conversation.messages.push(userMessage);
                 request = {
-                    messages: [...conversation.messages.filter((answer) => answer.role !== ERROR)]
+                    messages: [...conversation.messages.filter((answer) => answer.role !== ERROR)],
+                    params: {semantic_search: useSemanticSearch,
+                            top_p: topPValue,
+                            top: retrieveCount,
+                            temperature: retrieveTemp,
+                            prompt_override: promptTemplate,
+                            presence_penalty: presPenalty,
+                            frequency_penalty: freqPenalty},
+                    approach: ChatApproaches.BaseImplementation,
+                    model:ChatModel.GPT4,
                 };
             }
         } else {
             request = {
-                messages: [userMessage].filter((answer) => answer.role !== ERROR)
+                messages: [userMessage].filter((answer) => answer.role !== ERROR),
+                params: {semantic_search: useSemanticSearch,
+                        top_p: topPValue,
+                        top: retrieveCount,
+                        temperature: retrieveTemp,
+                        prompt_override: promptTemplate,
+                        presence_penalty: presPenalty,
+                        frequency_penalty: freqPenalty},
+                approach: ChatApproaches.BaseImplementation,
+                model:ChatModel.GPT4,
             };
             setMessages(request.messages)
         }
@@ -635,6 +720,7 @@ const Chat = () => {
                 </Stack>
             ) : (
                 <Stack horizontal className={styles.chatRoot}>
+                    <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
                     <div className={styles.chatContainer}>
                         {!messages || messages.length < 1 ? (
                             <Stack className={styles.chatEmptyState}>
@@ -795,8 +881,106 @@ const Chat = () => {
                     {(appStateContext?.state.isChatHistoryOpen && appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured) && <ChatHistoryPanel />}
                 </Stack>
             )}
+    <Panel
+            headerText="Configure answer generation"
+            isOpen= {isConfigPanelOpen}
+            isBlocking={false}
+            onDismiss={() => setIsConfigPanelOpen(false)}
+            closeButtonAriaLabel="Close"
+            onRenderFooterContent={() => <DefaultButton onClick={() => setIsConfigPanelOpen(false)}>Close</DefaultButton>}
+            isFooterAtBottom={true}
+        >
+            <ChoiceGroup
+                className={styles.oneshotSettingsSeparator}
+                label="Approach"
+                options={approaches}
+                defaultSelectedKey={approach}
+                onChange={onApproachChange}
+            />
+            <ChoiceGroup
+                className={styles.oneshotSettingsSeparator}
+                label="Model"
+                options={models}
+                defaultSelectedKey={model}
+                onChange={onModelChange}
+            />
+        <TooltipHost content={"Modify system prompt template"}>
+            <TextField
+                className={styles.chatSettingsSeparator}
+                defaultValue={promptTemplate}
+                label="Modify system prompt"
+                multiline
+                autoAdjustHeight
+                onChange={onPromptTemplateChange}
+            />
+            </TooltipHost>
+
+            <TooltipHost content={""}>
+            <SpinButton
+                className={styles.chatSettingsSeparator}
+                label="Retrieve this many documents from search:"
+                min={1}
+                max={50}
+                defaultValue={retrieveCount.toString()}
+                onChange={onRetrieveCountChange}
+            />
+            </TooltipHost>
+            <hr/>
+            <TooltipHost content={"Top-p parameter controls the diversity of the words used. It is a value between 0 and 1. A higher top-p value gives highly likely words, while low top-p value allows for rarer and more surprising words to be used."}>
+            <SpinButton
+                className={styles.chatSettingsSeparator}
+                label="Top-p:"
+                min={0}
+                max={1}
+                defaultValue={topPValue.toString()}
+                onChange={ontopPValueChange}
+            />
+            </TooltipHost>
+            <TooltipHost content={"Temperature controls the creativity and diversity of generated text. It is a value between 0 and 1. Greater values give more diverse outputs, while lower values give focused and deterministic text. "}>
+                <SpinButton
+                    className={styles.chatSettingsSeparator}
+                    label="Temperature:"
+                    min={0}
+                    max={1}
+                    defaultValue={retrieveTemp.toString()}
+                    onChange={onTempChange}
+                />
+            </TooltipHost>
+
+            <TooltipHost content={"Frequency penalty controls how often the model repeats a word. It is a value between -2 and 2. A higher frequency penalty leads to generated text with fewer repetition."}>
+                <SpinButton
+                    className={styles.chatSettingsSeparator}
+                    label="Frequency penalty:"
+                    min={-2}
+                    max={2}
+                    defaultValue={freqPenalty.toString()}
+                    onChange={onFreqPenaltyChange}
+                />
+            </TooltipHost>
+
+            <TooltipHost content={"Presence parameter controls how often the model introduces a new word. It is a value between -2 and 2. A higher presence penalty makes the model more likely to introduce new words."}>
+                <SpinButton
+                    className={styles.chatSettingsSeparator}
+                    label="Presence penalty:"
+                    min={-2}
+                    max={2}
+                    defaultValue={presPenalty.toString()}
+                    onChange={onPresPenaltyChange}
+                />
+            </TooltipHost>
+
+        <Checkbox
+            className={styles.chatSettingsSeparator}
+            checked={useSemanticSearch}
+            label="Use Semantic Search for retrieval"
+            onChange={semanticSearchEnabledChange}
+            />
+        </Panel>
+    
         </div>
+
     );
+
 };
 
 export default Chat;

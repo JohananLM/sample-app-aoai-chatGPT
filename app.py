@@ -31,7 +31,7 @@ UI_CHAT_LOGO = os.environ.get("UI_CHAT_LOGO")
 UI_CHAT_TITLE = os.environ.get("UI_CHAT_TITLE") or "Start chatting"
 UI_CHAT_DESCRIPTION = os.environ.get("UI_CHAT_DESCRIPTION") or "This chatbot is configured to answer your questions"
 UI_FAVICON = os.environ.get("UI_FAVICON") or "/favicon.ico"
-UI_SHOW_SHARE_BUTTON = os.environ.get("UI_SHOW_SHARE_BUTTON", "true").lower() == "true"
+UI_SHOW_SHARE_BUTTON = os.environ.get("UI_SHOW_SHARE_BUTTON", "true").lower() == "false"
 
 def create_app():
     app = Quart(__name__)

@@ -8,7 +8,19 @@ export async function conversationApi(options: ConversationRequest, abortSignal:
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            messages: options.messages
+            messages: options.messages,
+            approach: options.approach,
+            model: options.model,
+            params: {
+                top: options.params?.top,
+                temperature : options.params?.temperature,
+                presence_penalty : options.params?.presence_penalty,
+                frequency_penalty : options.params?.frequency_penalty,
+                top_p : options.params?.top_p,
+                semantic_search : options.params?.semantic_search,
+                prompt_override : options.params?.prompt_override
+
+            }
         }),
         signal: abortSignal
     });
