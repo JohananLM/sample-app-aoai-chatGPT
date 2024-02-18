@@ -196,7 +196,6 @@ frontend_settings = {
 }
 
 message_uuid = ""
-
 def should_use_data():
     global DATASOURCE_TYPE
     if AZURE_SEARCH_SERVICE and AZURE_SEARCH_INDEX:
@@ -307,9 +306,10 @@ def init_cosmosdb_client():
     return cosmos_conversation_client
 
 
-def get_configured_data_source():
+def get_configured_data_source(request_body):
     data_source = {}
     query_type = "simple"
+    params = request_body["params"]
     if DATASOURCE_TYPE == "AzureCognitiveSearch":
         # Set query type
         if AZURE_SEARCH_QUERY_TYPE:
@@ -355,9 +355,9 @@ def get_configured_data_source():
                         "vectorFields": parse_multi_columns(AZURE_SEARCH_VECTOR_COLUMNS) if AZURE_SEARCH_VECTOR_COLUMNS else []
                     },
                     "inScope": True if AZURE_SEARCH_ENABLE_IN_DOMAIN.lower() == "true" else False,
-                    "topNDocuments": int(AZURE_SEARCH_TOP_K) if AZURE_SEARCH_TOP_K else int(SEARCH_TOP_K),
+                    "topNDocuments": int(params["top"]),
                     "queryType": query_type,
-                    "semanticConfiguration": AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG if AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG else "",
+                    "semanticConfiguration": AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG if bool(params["semantic_search"]) else "",
                     "roleInformation": AZURE_OPENAI_SYSTEM_MESSAGE,
                     "filter": filter,
                     "strictness": int(AZURE_SEARCH_STRICTNESS) if AZURE_SEARCH_STRICTNESS else int(SEARCH_STRICTNESS)
@@ -499,6 +499,9 @@ def get_configured_data_source():
 
 def prepare_model_args(request_body):
     request_messages = request_body.get("messages", [])
+    model = request_body["model"]
+    params = request_body["params"]
+    prompt_override = params["prompt_override"]
     messages = []
     if not SHOULD_USE_DATA:
         messages = [
@@ -514,20 +517,23 @@ def prepare_model_args(request_body):
                 "role": message["role"] ,
                 "content": message["content"]
             })
+            
+    if prompt_override:
+        messages[-1]["content"] += f"\n {prompt_override}"
 
     model_args = {
         "messages": messages,
-        "temperature": float(AZURE_OPENAI_TEMPERATURE),
+        "temperature": params["temperature"],
         "max_tokens": int(AZURE_OPENAI_MAX_TOKENS),
-        "top_p": float(AZURE_OPENAI_TOP_P),
+        "top_p": params["top_p"],
         "stop": parse_multi_columns(AZURE_OPENAI_STOP_SEQUENCE) if AZURE_OPENAI_STOP_SEQUENCE else None,
         "stream": SHOULD_STREAM,
-        "model": AZURE_OPENAI_MODEL,
+        "model": model,
     }
 
     if SHOULD_USE_DATA:
         model_args["extra_body"] = {
-            "dataSources": [get_configured_data_source()]
+            "dataSources": [get_configured_data_source(request_body)]
         }
 
     model_args_clean = copy.deepcopy(model_args)
@@ -604,7 +610,7 @@ async def conversation():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
-    
+    logging.info(request_json["params"])
     return await conversation_internal(request_json)
 
 @bp.route("/frontend_settings", methods=["GET"])  
