@@ -693,8 +693,9 @@ const Chat = () => {
         chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" })
     }, [showLoadingMessage, processMessages]);
 
-    const onShowCitation = (citation: Citation, i : number) => {
-        setActiveCitation(citation);
+    const onShowCitation = (citation: Citation | null, i : number) => {
+        if (citation != null)
+            setActiveCitation(citation);
         setSelectedAnswer(i);
         setIsCitationPanelOpen(true);
     };
@@ -775,6 +776,8 @@ const Chat = () => {
                                                         feedback: answer.feedback
                                                     }}
                                                     onCitationClicked={c => onShowCitation(c, index-1)}
+                                                    onEmptyCitation={() => onShowCitation(null, index-1)}
+                                                    loading = {false}
                                                 />
                                             </div> : answer.role === ERROR ? <div className={styles.chatMessageError}>
                                                 <Stack horizontal className={styles.chatMessageErrorContent}>
@@ -795,6 +798,8 @@ const Chat = () => {
                                                     citations: []
                                                 }}
                                                 onCitationClicked={() => null}
+                                                onEmptyCitation={() => null}
+                                                loading = {true}
                                             />
                                         </div>
                                     </>

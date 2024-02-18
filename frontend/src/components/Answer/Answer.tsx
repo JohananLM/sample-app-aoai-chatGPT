@@ -18,11 +18,15 @@ import { XSSAllowTags } from "../../constants/xssAllowTags";
 interface Props {
     answer: AskResponse;
     onCitationClicked: (citedDocument: Citation) => void;
+    onEmptyCitation: () => any;
+    loading : boolean
 }
 
 export const Answer = ({
     answer,
-    onCitationClicked
+    onCitationClicked,
+    onEmptyCitation,
+    loading
 }: Props) => {
     const initializeAnswerFeedback = (answer: AskResponse) => {
         if (answer.message_id == undefined) return undefined;
@@ -232,6 +236,24 @@ export const Answer = ({
                                 <FontIcon className={styles.accordionIcon}
                                 onClick={handleChevronClick} iconName={chevronIsExpanded ? 'ChevronDown' : 'ChevronRight'}
                                 />
+                            </Stack>
+                            
+                        </Stack>
+                    </Stack.Item>
+                )}
+                {parsedAnswer.citations.length == 0 && (!loading) && (
+                    <Stack.Item>
+                        <Stack style={{width: "100%"}} >
+                            <Stack horizontal horizontalAlign='start' verticalAlign='center'>
+                                <Text
+                                    className={styles.accordionTitle}
+                                    onClick={onEmptyCitation}
+                                    aria-label="Open citation panel"
+                                    tabIndex={0}
+                                    role="button"
+                                >
+                                <span>{"0 references - Open citation panel"}</span>
+                                </Text>
                             </Stack>
                             
                         </Stack>
