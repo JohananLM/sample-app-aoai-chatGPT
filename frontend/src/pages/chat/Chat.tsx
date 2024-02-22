@@ -268,7 +268,7 @@ const Chat = () => {
                     presence_penalty: presPenalty,
                     frequency_penalty: freqPenalty},
             approach: ChatApproaches.BaseImplementation,
-            model:ChatModel.GPT4
+            model:model 
         };
 
         let result = {} as ChatResponse;
@@ -699,6 +699,7 @@ const Chat = () => {
         setSelectedAnswer(i);
         setIsCitationPanelOpen(true);
     };
+
     const parseThoughtsFromHistory = (messages : ChatMessage[]) : string => {
         return messages.map((msg) => 
             msg.content
@@ -890,13 +891,14 @@ const Chat = () => {
                         </Stack>
                     </div>
                     {/* Citation Panel */}
-                    {messages && messages.length > 0 && isCitationPanelOpen && activeCitation && (
+                    {messages && messages.length > 0 && isCitationPanelOpen &&  (
                         <Stack.Item className={styles.citationPanel} tabIndex={0} role="tabpanel" aria-label="Citations Panel">
                             <Stack aria-label="Citations Panel Header Container" horizontal className={styles.citationPanelHeaderContainer} horizontalAlign="space-between" verticalAlign="center">
                                 <span aria-label="Citations" className={styles.citationPanelHeader}>Citations and Analyis</span>
                                 <IconButton iconProps={{ iconName: 'Cancel' }} aria-label="Close citations panel" onClick={() => setIsCitationPanelOpen(false)} />
                             </Stack>
-                            <h5 className={styles.citationPanelTitle} tabIndex={0} title={activeCitation.url && !activeCitation.url.includes("blob.core") ? activeCitation.url : activeCitation.title ?? ""} onClick={() => onViewSource(activeCitation)}>{activeCitation.title}</h5>
+                            {activeCitation &&
+                            (<h5 className={styles.citationPanelTitle} tabIndex={0} title={activeCitation.url && !activeCitation.url.includes("blob.core") ? activeCitation.url : activeCitation.title ?? ""} onClick={() => onViewSource(activeCitation)}>{activeCitation.title}</h5>)} 
                             <div tabIndex={0}>
                                 <AnalysisPanel
                                 className={styles.citationPanelContent}
