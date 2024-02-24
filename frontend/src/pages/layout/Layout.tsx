@@ -12,6 +12,9 @@ const Layout = () => {
     const [isSharePanelOpen, setIsSharePanelOpen] = useState<boolean>(false);
     const [copyClicked, setCopyClicked] = useState<boolean>(false);
     const [copyText, setCopyText] = useState<string>("Copy URL");
+    const [shareLabel, setShareLabel] = useState<string | undefined>("Share");
+    const [hideHistoryLabel, setHideHistoryLabel] = useState<string>("Hide chat history");
+    const [showHistoryLabel, setShowHistoryLabel] = useState<string>("Show chat history");
     const appStateContext = useContext(AppStateContext)
     const ui = appStateContext?.state.frontendSettings?.ui;
 
@@ -42,6 +45,25 @@ const Layout = () => {
 
     useEffect(() => { }, [appStateContext?.state.isCosmosDBAvailable.status]);
 
+    useEffect(() => {
+        const handleResize = () => {
+          if (window.innerWidth < 480) {
+            setShareLabel(undefined)
+            setHideHistoryLabel("Hide history")
+            setShowHistoryLabel("Show history")
+          } else {
+            setShareLabel("Share")
+            setHideHistoryLabel("Hide chat history")
+            setShowHistoryLabel("Show chat history")
+          }
+        };
+    
+        window.addEventListener('resize', handleResize);
+        handleResize();
+    
+        return () => window.removeEventListener('resize', handleResize);
+      }, []);
+
     return (
         <div className={styles.layout}>
             <header className={styles.header} role={"banner"}>
@@ -59,9 +81,9 @@ const Layout = () => {
                     {ui?.show_share_button &&
                         <Stack horizontal tokens={{ childrenGap: 4 }}>
                             {(appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured) &&
-                                <HistoryButton onClick={handleHistoryClick} text={appStateContext?.state?.isChatHistoryOpen ? "Hide chat history" : "Show chat history"} />
+                                <HistoryButton onClick={handleHistoryClick} text={appStateContext?.state?.isChatHistoryOpen ? hideHistoryLabel : showHistoryLabel} />
                             }
-                            <ShareButton onClick={handleShareClick} />
+                            <ShareButton onClick={handleShareClick} text={shareLabel} />
                         </Stack>
                     }
                 </Stack>
