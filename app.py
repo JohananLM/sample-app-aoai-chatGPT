@@ -27,6 +27,7 @@ from backend.history.cosmosdbservice import CosmosConversationClient
 
 from backend.utils import format_as_ndjson, format_stream_response, generateFilterString, parse_multi_columns, format_non_streaming_response
 
+load_dotenv()
 bp = Blueprint("routes", __name__, static_folder="static", template_folder="static")
 
 
@@ -46,20 +47,19 @@ def create_app():
     app.register_blueprint(bp)
     return app
 
-
 @bp.route("/")
 async def index():
     return await render_template("index.html", title=UI_TITLE, favicon=UI_FAVICON)
 
 @bp.route("/favicon.ico")
 async def favicon():
-    return await bp.send_static_file("favicon.ico")
+    return await bp.send_static_file("/favicon.ico")
 
 @bp.route("/assets/<path:path>")
 async def assets(path):
     return await send_from_directory("static/assets", path)
 
-load_dotenv()
+
 CONFIG_BLOB_CLIENT = "blob_client"
 AZURE_STORAGE_ACCOUNT = os.environ.get("AZURE_STORAGE_ACCOUNT")
 AZURE_STORAGE_CONTAINER = os.environ.get("AZURE_STORAGE_CONTAINER")
@@ -1026,3 +1026,5 @@ async def generate_title(conversation_messages, model):
 
 
 app = create_app()
+if __name__ == "__main__":
+    app.run()
