@@ -37,10 +37,12 @@ UI_LOGO = os.environ.get("UI_LOGO")
 UI_CHAT_LOGO = os.environ.get("UI_CHAT_LOGO") 
 UI_CHAT_TITLE = os.environ.get("UI_CHAT_TITLE") or "Start chatting"
 UI_CHAT_DESCRIPTION = os.environ.get("UI_CHAT_DESCRIPTION") or "This chatbot is configured to answer your questions"
-UI_FAVICON = os.environ.get("UI_FAVICON") or "/favicon.ico"
+UI_FAVICON = os.environ.get("UI_FAVICON") or "/static/favicon.ico"
 UI_SHOW_SHARE_BUTTON = os.environ.get("UI_SHOW_SHARE_BUTTON", "true").lower() == "false"
 
 
+print(UI_FAVICON)
+print(os.path.exists(UI_FAVICON))
 
 def create_app():
     app = Quart(__name__)
@@ -54,7 +56,7 @@ async def index():
 
 @bp.route("/favicon.ico")
 async def favicon():
-    return await bp.send_static_file("/favicon.ico")
+    return await bp.send_static_file(UI_FAVICON)
 
 @bp.route("/assets/<path:path>")
 async def assets(path):
