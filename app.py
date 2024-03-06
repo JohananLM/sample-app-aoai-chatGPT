@@ -19,6 +19,7 @@ from quart import (
     abort,
     send_file
 )
+import asyncio
 
 from openai import AsyncAzureOpenAI
 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
@@ -39,10 +40,6 @@ UI_CHAT_TITLE = os.environ.get("UI_CHAT_TITLE") or "Start chatting"
 UI_CHAT_DESCRIPTION = os.environ.get("UI_CHAT_DESCRIPTION") or "This chatbot is configured to answer your questions"
 UI_FAVICON = os.environ.get("UI_FAVICON") or "/static/favicon.ico"
 UI_SHOW_SHARE_BUTTON = os.environ.get("UI_SHOW_SHARE_BUTTON", "true").lower() == "false"
-
-
-print(UI_FAVICON)
-print(os.path.exists(UI_FAVICON))
 
 def create_app():
     app = Quart(__name__)
@@ -102,11 +99,15 @@ DEFAULT_MODEL = "chat"
 
 # AOAI Integration Settings
 AZURE_OPENAI_RESOURCE = os.environ.get("AZURE_OPENAI_RESOURCE")
+AZURE_OPENAI_GPT4V_RESOURCE = os.environ.get("AZURE_OPENAI_GPT4V_RESOURCE")
 #AZURE_OPENAI_MODEL = os.environ.get("AZURE_OPENAI_MODEL")
 AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_KEY = os.environ.get("AZURE_OPENAI_KEY")
-AZURE_OPENAI_TEMPERATURE = os.environ.get("AZURE_OPENAI_TEMPERATURE", 0)
-AZURE_OPENAI_TOP_P = os.environ.get("AZURE_OPENAI_TOP_P", 1.0)
+AZURE_OPENAI_GPT4V_KEY = os.environ.get("AZURE_OPENAI_GPT4V_KEY")
+OPENAI_RESOURCE={}
+OPENAI_RESOURCE[AZURE_OPENAI_RESOURCE] = AZURE_OPENAI_KEY
+OPENAI_RESOURCE[AZURE_OPENAI_GPT4V_RESOURCE] = AZURE_OPENAI_GPT4V_KEY
+
 AZURE_OPENAI_MAX_TOKENS = os.environ.get("AZURE_OPENAI_MAX_TOKENS", 1000)
 AZURE_OPENAI_STOP_SEQUENCE = os.environ.get("AZURE_OPENAI_STOP_SEQUENCE")
 AZURE_OPENAI_SYSTEM_MESSAGE = os.environ.get("AZURE_OPENAI_SYSTEM_MESSAGE", "You are an AI assistant that helps people find information.")
@@ -188,17 +189,26 @@ MODELS = {
     "chat" : {
         "model_name" :"gpt-35-turbo",
         "model" : "chat",
-        "token_limit" :  AZURE_OPENAI_MAX_TOKENS 
+        "token_limit" :  AZURE_OPENAI_MAX_TOKENS,
+        "resource" : AZURE_OPENAI_RESOURCE
     },
     "chat-gpt4" : {
         "model_name" : "gpt-4",
         "model" : "chat-gpt4",
-        "token_limit" : AZURE_OPENAI_MAX_TOKENS 
+        "token_limit" : AZURE_OPENAI_MAX_TOKENS,
+        "resource" : AZURE_OPENAI_RESOURCE
     },
     "gpt-4-32k" : {
         "model_name" : "gpt-4-32k",
         "model" : "gpt-4-32k",
-        "token_limit" : AZURE_OPENAI_MAX_TOKENS 
+        "token_limit" : AZURE_OPENAI_MAX_TOKENS,
+        "resource" : AZURE_OPENAI_RESOURCE
+    },
+     "gpt-4-v" : {
+        "model_name" : "gpt-4",
+        "model" : "gpt-4-vision",
+        "token_limit" : AZURE_OPENAI_MAX_TOKENS,
+        "resource" : AZURE_OPENAI_GPT4V_RESOURCE
     }
 }
 
@@ -251,27 +261,22 @@ def should_use_data():
 SHOULD_USE_DATA = should_use_data()
 
 # Initialize Azure OpenAI Client
-def init_openai_client(deployment, use_data=SHOULD_USE_DATA):
+def init_openai_client(deployment, resource, use_data=SHOULD_USE_DATA):
     azure_openai_client = None
     try:
         # Endpoint
-        if not AZURE_OPENAI_ENDPOINT and not AZURE_OPENAI_RESOURCE:
+        if not AZURE_OPENAI_ENDPOINT and not resource:
             raise Exception("AZURE_OPENAI_ENDPOINT or AZURE_OPENAI_RESOURCE is required")
         
-        endpoint = AZURE_OPENAI_ENDPOINT if AZURE_OPENAI_ENDPOINT else f"https://{AZURE_OPENAI_RESOURCE}.openai.azure.com/"
+        endpoint = AZURE_OPENAI_ENDPOINT if AZURE_OPENAI_ENDPOINT else f"https://{resource}.openai.azure.com/"
         
         # Authentication
-        aoai_api_key = AZURE_OPENAI_KEY
+        aoai_api_key = OPENAI_RESOURCE[resource]
         ad_token_provider = None
         if not aoai_api_key:
             logging.debug("No AZURE_OPENAI_KEY found, using Azure AD auth")
             ad_token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
-
-        # Deployment
-        #deployment = AZURE_OPENAI_MODEL
-        #if not deployment:
-         #   raise Exception("AZURE_OPENAI_MODEL is required")
-
+            
         # Default Headers
         default_headers = {
             'x-ms-useragent': USER_AGENT
@@ -522,7 +527,7 @@ def get_configured_data_source(request_body):
 
     return data_source
 
-def prepare_model_args(request_body):
+def prepare_model_args(request_body, body_type = None):
     request_messages = request_body.get("messages", [])
     model = request_body["model"]
     params = request_body["params"]
@@ -536,24 +541,24 @@ def prepare_model_args(request_body):
             }
         ]
 
+
     for message in request_messages:
         if message:
-            messages.append({
-                "role": message["role"] ,
-                "content": message["content"]
-            })
+                messages.append({
+                    "role": message["role"] ,
+                    "content": message["content"]
+                })
             
-    if prompt_override:
-        messages[-1]["content"] += f"\n {prompt_override}"
+   # if prompt_override:
+      #  messages[-1]["content"] += f"\n {prompt_override}"
 
     model_args = {
         "messages": messages,
         "temperature": params["temperature"],
         "max_tokens": int(AZURE_OPENAI_MAX_TOKENS),
         "top_p": params["top_p"],
-        "stop": parse_multi_columns(AZURE_OPENAI_STOP_SEQUENCE) if AZURE_OPENAI_STOP_SEQUENCE else None,
         "stream": SHOULD_STREAM,
-        "model": MODELS[model]["model"],
+        "model": MODELS[model]["model"]
     }
 
     if SHOULD_USE_DATA:
@@ -583,9 +588,10 @@ def prepare_model_args(request_body):
 
 async def send_chat_request(request):
     model_args = prepare_model_args(request)
+    resource = MODELS[request["model"]]["resource"]
 
     try:
-        azure_openai_client = init_openai_client(model_args["model"])
+        azure_openai_client = init_openai_client(model_args["model"], resource = resource)
         response = await azure_openai_client.chat.completions.create(**model_args)
 
     except Exception as e:
@@ -635,8 +641,9 @@ async def conversation():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
-    logging.info(request_json["params"])
-    return await conversation_internal(request_json)
+    response = await conversation_internal(request_json)
+    print(await response.get_json())
+    return response
 
 @bp.route("/frontend_settings", methods=["GET"])  
 def get_frontend_settings():

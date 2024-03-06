@@ -95,6 +95,10 @@ const Chat = () => {
         {
             key: ChatModel.GPT4_32K,
             text: "GPT-4-32K"
+        },
+        {
+            key: ChatModel.GPT4_V,
+            text: "GPT-4-Vision"
         }
     ];
 

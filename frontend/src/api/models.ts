@@ -76,7 +76,8 @@ export type ChatParameters = {
 export enum ChatModel {
     GPT3_5_TURBO = "chat",
     GPT4 = "chat-gpt4",
-    GPT4_32K = "gpt-4-32k"
+    GPT4_32K = "gpt-4-32k",
+    GPT4_V = "gpt-4-v"
 }
 
 export type ConversationRequest = {
