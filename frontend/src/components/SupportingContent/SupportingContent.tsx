@@ -1,7 +1,7 @@
 import { parseSupportingContentItem } from "./SupportingContentParser";
 
 import styles from "./SupportingContent.module.css";
-import { ChatMessage } from "../../api";
+import { ChatMessage,   GPT4VUserMessage } from "../../api";
 
 interface Props {
     supportingContent: ChatMessage;
@@ -17,8 +17,17 @@ type ContentItem = {
     chunk_id : string
 }
 
+const getCitationContent = (message_content : string | [GPT4VUserMessage]) => {
+    if (typeof message_content == "string"){
+            return message_content;
+    } else {
+        const msg = message_content.map((u_msg) => {u_msg.text;}).join("\n");
+        return msg;
+    }
+}
+
 export const SupportingContent = ({ supportingContent }: Props) => {  
-     const out = JSON.parse(supportingContent.content);
+     const out = JSON.parse(getCitationContent(supportingContent.content));
      const contents : ContentItem[] = out["citations"];
 
     return (

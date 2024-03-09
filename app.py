@@ -190,25 +190,29 @@ MODELS = {
         "model_name" :"gpt-35-turbo",
         "model" : "chat",
         "token_limit" :  AZURE_OPENAI_MAX_TOKENS,
-        "resource" : AZURE_OPENAI_RESOURCE
+        "resource" : AZURE_OPENAI_RESOURCE,
+        "parsetype" : "str"
     },
     "chat-gpt4" : {
         "model_name" : "gpt-4",
         "model" : "chat-gpt4",
         "token_limit" : AZURE_OPENAI_MAX_TOKENS,
-        "resource" : AZURE_OPENAI_RESOURCE
+        "resource" : AZURE_OPENAI_RESOURCE,
+        "parsetype" : "str"
     },
     "gpt-4-32k" : {
         "model_name" : "gpt-4-32k",
         "model" : "gpt-4-32k",
         "token_limit" : AZURE_OPENAI_MAX_TOKENS,
-        "resource" : AZURE_OPENAI_RESOURCE
+        "resource" : AZURE_OPENAI_RESOURCE,
+        "parsetype" : "str"
     },
      "gpt-4-v" : {
         "model_name" : "gpt-4",
         "model" : "gpt-4-vision",
         "token_limit" : AZURE_OPENAI_MAX_TOKENS,
-        "resource" : AZURE_OPENAI_GPT4V_RESOURCE
+        "resource" : AZURE_OPENAI_GPT4V_RESOURCE,
+        "parsetype" : "list[dict[str,str]]"
     }
 }
 
@@ -527,6 +531,21 @@ def get_configured_data_source(request_body):
 
     return data_source
 
+def message_formatter(msg : str | list[dict[str,str]], parsetype = "str"):
+    print(msg)
+    if type(msg) is str:
+        match parsetype:
+            case "str":
+                return msg
+            case "list[dict[str,str]]":
+                return [{"type" : "text", "text" : msg}]
+    else:
+        match parsetype:
+            case "GPT-4":
+                return msg["text"]
+            case "GPT-4-V":
+                return msg
+
 def prepare_model_args(request_body, body_type = None):
     request_messages = request_body.get("messages", [])
     model = request_body["model"]
@@ -546,11 +565,11 @@ def prepare_model_args(request_body, body_type = None):
         if message:
                 messages.append({
                     "role": message["role"] ,
-                    "content": message["content"]
+                    "content": message_formatter(message["content"], MODELS[model]["parsetype"])
                 })
-            
-   # if prompt_override:
-      #  messages[-1]["content"] += f"\n {prompt_override}"
+    print(messages)
+    #if prompt_override:
+    #    messages[-1]["content"] += f"\n {prompt_override}"
 
     model_args = {
         "messages": messages,
@@ -592,6 +611,7 @@ async def send_chat_request(request):
 
     try:
         azure_openai_client = init_openai_client(model_args["model"], resource = resource)
+        print(azure_openai_client)
         response = await azure_openai_client.chat.completions.create(**model_args)
 
     except Exception as e:
@@ -642,7 +662,9 @@ async def conversation():
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
     response = await conversation_internal(request_json)
-    print(await response.get_json())
+    resp = response
+    print("########### INFO #########")
+    print(resp)
     return response
 
 @bp.route("/frontend_settings", methods=["GET"])  

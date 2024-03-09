@@ -23,10 +23,15 @@ export type ToolMessageContent = {
     intent: string;
 }
 
+export type GPT4VUserMessage = {
+    type : string;
+    text : string | null;
+}
+
 export type ChatMessage = {
     id: string;
     role: string;
-    content: string;
+    content: string | [GPT4VUserMessage];
     end_turn?: boolean;
     date: string;
     feedback?: Feedback;

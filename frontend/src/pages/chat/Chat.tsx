@@ -31,7 +31,8 @@ import {
     historyClear,
     ChatHistoryLoadingState,
     CosmosDBStatus,
-    ErrorMessage
+    ErrorMessage,
+    GPT4VUserMessage
 } from "../../api";
 import { Answer } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
@@ -720,10 +721,22 @@ const Chat = () => {
         }
     };
 
+    const getCitationContent = (message_content : string | [GPT4VUserMessage]) => {
+        console.log("**********");
+        console.log(message_content);
+        if (typeof message_content == "string"){
+                return message_content;
+        } else {
+            const msg = message_content.map((u_msg) => {u_msg.text;}).join("\n");
+            return msg;
+        }
+    }
+
     const parseCitationFromMessage = (message: ChatMessage) => {
+        
         if (message?.role && message?.role === "tool") {
             try {
-                const toolMessage = JSON.parse(message.content) as ToolMessageContent;
+                const toolMessage = JSON.parse(getCitationContent(message.content)) as ToolMessageContent;
                 return toolMessage.citations;
             }
             catch {
@@ -732,6 +745,8 @@ const Chat = () => {
         }
         return [];
     }
+
+
 
 
     const disabledButton = () => {
@@ -771,13 +786,13 @@ const Chat = () => {
                                     <>
                                         {answer.role === "user" ? (
                                             <div className={styles.chatMessageUser} tabIndex={0}>
-                                                <div className={styles.chatMessageUserMessage}>{answer.content}</div>
+                                                <div className={styles.chatMessageUserMessage}>{getCitationContent(answer.content)}</div>
                                             </div>
                                         ) : (
                                             answer.role === "assistant" ? <div className={styles.chatMessageGpt}>
                                                 <Answer
                                                     answer={{
-                                                        answer: answer.content,
+                                                        answer: getCitationContent(answer.content),
                                                         citations: parseCitationFromMessage(messages[index - 1]),
                                                         message_id: answer.id,
                                                         feedback: answer.feedback
@@ -791,7 +806,7 @@ const Chat = () => {
                                                     <ErrorCircleRegular className={styles.errorIcon} style={{ color: "rgba(182, 52, 67, 1)" }} />
                                                     <span>Error</span>
                                                 </Stack>
-                                                <span className={styles.chatMessageErrorContent}>{answer.content}</span>
+                                                <span className={styles.chatMessageErrorContent}>{getCitationContent(answer.content)}</span>
                                             </div> : null
                                         )}
                                     </>
