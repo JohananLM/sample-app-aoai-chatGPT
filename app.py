@@ -19,6 +19,7 @@ from quart import (
     abort,
     send_file
 )
+import requests
 import asyncio
 
 from openai import AsyncAzureOpenAI
@@ -191,28 +192,32 @@ MODELS = {
         "model" : "chat",
         "token_limit" :  AZURE_OPENAI_MAX_TOKENS,
         "resource" : AZURE_OPENAI_RESOURCE,
-        "parsetype" : "str"
+        "parsetype" : "str",
+        "completion" : "chat"
     },
     "chat-gpt4" : {
         "model_name" : "gpt-4",
         "model" : "chat-gpt4",
         "token_limit" : AZURE_OPENAI_MAX_TOKENS,
         "resource" : AZURE_OPENAI_RESOURCE,
-        "parsetype" : "str"
+        "parsetype" : "str",
+        "completion" : "chat"
     },
     "gpt-4-32k" : {
         "model_name" : "gpt-4-32k",
         "model" : "gpt-4-32k",
         "token_limit" : AZURE_OPENAI_MAX_TOKENS,
         "resource" : AZURE_OPENAI_RESOURCE,
-        "parsetype" : "str"
+        "parsetype" : "str",
+        "completion" : "chat"
     },
      "gpt-4-v" : {
         "model_name" : "gpt-4",
         "model" : "gpt-4-vision",
         "token_limit" : AZURE_OPENAI_MAX_TOKENS,
         "resource" : AZURE_OPENAI_GPT4V_RESOURCE,
-        "parsetype" : "list[dict[str,str]]"
+        "parsetype" : "list[dict[str,str]]",
+        "completion" : "completion"
     }
 }
 
@@ -608,11 +613,21 @@ def prepare_model_args(request_body, body_type = None):
 async def send_chat_request(request):
     model_args = prepare_model_args(request)
     resource = MODELS[request["model"]]["resource"]
+    completion = MODELS[request["model"]]["completion"]
 
     try:
         azure_openai_client = init_openai_client(model_args["model"], resource = resource)
         print(azure_openai_client)
-        response = await azure_openai_client.chat.completions.create(**model_args)
+        if completion == "chat":
+            response = await azure_openai_client.chat.completions.create(**model_args)
+        else:
+            headers = {
+                "Content-Type": "application/json",
+                "api-key": AZURE_OPENAI_GPT4V_KEY,
+            }
+            GPT4V_ENDPOINT = "https://yh2-openai-resource.openai.azure.com/openai/deployments/gpt-4-vision/extensions/chat/completions?api-version=2023-12-01-preview"
+            response = requests.post(GPT4V_ENDPOINT, headers=headers, json=model_args)
+            response.raise_for_status()
 
     except Exception as e:
         logging.exception("Exception in send_chat_request")
