@@ -52,6 +52,8 @@ UI_FAVICON = os.environ.get("UI_FAVICON") or "/static/favicon.ico"
 UI_SHOW_SHARE_BUTTON = os.environ.get("UI_SHOW_SHARE_BUTTON", "true").lower() == "false"
 
 
+
+
 print(UI_FAVICON)
 print(os.path.exists(UI_FAVICON))
 
@@ -214,6 +216,33 @@ AZURE_MLINDEX_VECTOR_COLUMNS = os.environ.get("AZURE_MLINDEX_VECTOR_COLUMNS")
 AZURE_MLINDEX_QUERY_TYPE = os.environ.get("AZURE_MLINDEX_QUERY_TYPE")
 
 
+# Azure AI MLIndex Integration Settings - for use with MLIndex data assets created in Azure AI Studio
+AZURE_MLINDEX_NAME = os.environ.get("AZURE_MLINDEX_NAME")
+AZURE_MLINDEX_VERSION = os.environ.get("AZURE_MLINDEX_VERSION")
+AZURE_ML_PROJECT_RESOURCE_ID = os.environ.get(
+    "AZURE_ML_PROJECT_RESOURCE_ID"
+)  # /subscriptions/{sub ID}/resourceGroups/{rg name}/providers/Microsoft.MachineLearningServices/workspaces/{AML project name}
+AZURE_MLINDEX_TOP_K = os.environ.get("AZURE_MLINDEX_TOP_K", 5)
+AZURE_MLINDEX_STRICTNESS = os.environ.get("AZURE_MLINDEX_STRICTNESS", SEARCH_STRICTNESS)
+AZURE_MLINDEX_ENABLE_IN_DOMAIN = os.environ.get(
+    "AZURE_MLINDEX_ENABLE_IN_DOMAIN", SEARCH_ENABLE_IN_DOMAIN
+)
+AZURE_MLINDEX_CONTENT_COLUMNS = os.environ.get("AZURE_MLINDEX_CONTENT_COLUMNS", "")
+AZURE_MLINDEX_FILENAME_COLUMN = os.environ.get("AZURE_MLINDEX_FILENAME_COLUMN")
+AZURE_MLINDEX_TITLE_COLUMN = os.environ.get("AZURE_MLINDEX_TITLE_COLUMN")
+AZURE_MLINDEX_URL_COLUMN = os.environ.get("AZURE_MLINDEX_URL_COLUMN")
+AZURE_MLINDEX_VECTOR_COLUMNS = os.environ.get("AZURE_MLINDEX_VECTOR_COLUMNS")
+AZURE_MLINDEX_QUERY_TYPE = os.environ.get("AZURE_MLINDEX_QUERY_TYPE")
+# Promptflow Integration Settings
+USE_PROMPTFLOW = os.environ.get("USE_PROMPTFLOW", "false").lower() == "true"
+PROMPTFLOW_ENDPOINT = os.environ.get("PROMPTFLOW_ENDPOINT")
+PROMPTFLOW_API_KEY = os.environ.get("PROMPTFLOW_API_KEY")
+PROMPTFLOW_RESPONSE_TIMEOUT = os.environ.get("PROMPTFLOW_RESPONSE_TIMEOUT", 30.0)
+# default request and response field names are input -> 'query' and output -> 'reply'
+PROMPTFLOW_REQUEST_FIELD_NAME = os.environ.get("PROMPTFLOW_REQUEST_FIELD_NAME", "query")
+PROMPTFLOW_RESPONSE_FIELD_NAME = os.environ.get(
+    "PROMPTFLOW_RESPONSE_FIELD_NAME", "reply"
+)
 
 MODELS = {
     "chat" : {
@@ -258,38 +287,8 @@ frontend_settings = {
 
 message_uuid = ""
 def should_use_data():
-    global DATASOURCE_TYPE
-    if AZURE_SEARCH_SERVICE and AZURE_SEARCH_INDEX:
-        DATASOURCE_TYPE = "AzureCognitiveSearch"
-        logging.debug("Using Azure Cognitive Search")
-        return True
 
-    if (
-        AZURE_COSMOSDB_MONGO_VCORE_DATABASE
-        and AZURE_COSMOSDB_MONGO_VCORE_CONTAINER
-        and AZURE_COSMOSDB_MONGO_VCORE_INDEX
-        and AZURE_COSMOSDB_MONGO_VCORE_CONNECTION_STRING
-    ):
-        DATASOURCE_TYPE = "AzureCosmosDB"
-        logging.debug("Using Azure CosmosDB Mongo vcore")
-        return True
-
-    if ELASTICSEARCH_ENDPOINT and ELASTICSEARCH_ENCODED_API_KEY and ELASTICSEARCH_INDEX:
-        DATASOURCE_TYPE = "Elasticsearch"
-        logging.debug("Using Elasticsearch")
-        return True
-
-    if PINECONE_ENVIRONMENT and PINECONE_API_KEY and PINECONE_INDEX_NAME:
-        DATASOURCE_TYPE = "Pinecone"
-        logging.debug("Using Pinecone")
-        return True
-
-    if AZURE_MLINDEX_NAME and AZURE_MLINDEX_VERSION and AZURE_ML_PROJECT_RESOURCE_ID:
-        DATASOURCE_TYPE = "AzureMLIndex"
-        logging.debug("Using Azure ML Index")
-        return True
-
-    return False
+    return True
 
 
 SHOULD_USE_DATA = should_use_data()
@@ -655,7 +654,7 @@ def prepare_model_args(request_body):
 
     if SHOULD_USE_DATA:
         model_args["extra_body"] = {
-            "dataSources": [get_configured_data_source(request_body)]
+            "data_sources": [get_configured_data_source(request_body)]
         }
 
     model_args_clean = copy.deepcopy(model_args)
